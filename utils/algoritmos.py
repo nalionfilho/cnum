@@ -1,5 +1,7 @@
 """Algoritmos básicos de cálculo numérico."""
 
+import numpy as np
+
 
 def bissecao(f, a, b, tol=1e-10, max_iter=100):
     """Encontra uma raiz de f em [a, b] pelo método da bisseção."""
@@ -65,3 +67,87 @@ def secante(a, b, f, TOL=1e-8, max_iter=100):
             return x
         a, b = b, x
     raise RuntimeError("O método da secante não convergiu.")
+
+
+def lu_pivot(A):
+    """Fatora A como PA = LU usando pivotamento parcial."""
+    A = A.astype(float).copy()
+    n = A.shape[0]
+    P = np.eye(n)
+    L = np.zeros((n, n))
+    U = A.copy()
+
+    for k in range(n):
+        pivot = np.argmax(np.abs(U[k:, k])) + k
+        if np.isclose(U[pivot, k], 0.0):
+            raise np.linalg.LinAlgError("Matriz singular ou quase singular.")
+        if pivot != k:
+            U[[k, pivot], k:] = U[[pivot, k], k:]
+            P[[k, pivot], :] = P[[pivot, k], :]
+            L[[k, pivot], :k] = L[[pivot, k], :k]
+
+        for i in range(k + 1, n):
+            L[i, k] = U[i, k] / U[k, k]
+            U[i, k:] -= L[i, k] * U[k, k:]
+
+    np.fill_diagonal(L, 1.0)
+    return P, L, U
+
+
+def _substituicao_direta(L, B):
+    Y = np.zeros(L.shape[0])
+    for i in range(L.shape[0]):
+        Y[i] = B[i] - np.dot(L[i, :i], Y[:i])
+    return Y
+
+
+def _substituicao_reversa(U, Y):
+    X = np.zeros(U.shape[0])
+    for i in reversed(range(U.shape[0])):
+        if np.isclose(U[i, i], 0.0):
+            raise np.linalg.LinAlgError("U possui pivô nulo.")
+        X[i] = (Y[i] - np.dot(U[i, i + 1:], X[i + 1:])) / U[i, i]
+    return X
+
+
+def lu(A, B):
+    """Resolve Ax = B por fatoração LU com pivotamento parcial."""
+    P, L, U = lu_pivot(A)
+    return _substituicao_reversa(U, _substituicao_direta(L, P @ B))
+
+
+def jacobi(A, B, k, TOL):
+    """Resolve Ax = B pelo método iterativo de Jacobi."""
+    A = A.astype(float)
+    B = B.astype(float)
+    diagonal = np.diag(A)
+    if np.any(np.isclose(diagonal, 0.0)):
+        raise ValueError("A possui elementos diagonais nulos.")
+
+    X = np.zeros(B.shape[0])
+    resto = A - np.diagflat(diagonal)
+    for _ in range(k):
+        X_novo = (B - resto @ X) / diagonal
+        if np.linalg.norm(X_novo - X, ord=2) < TOL:
+            return X_novo
+        X = X_novo
+    return X
+
+
+def seidel(A, B, k, TOL):
+    """Resolve Ax = B pelo método iterativo de Gauss-Seidel."""
+    A = A.astype(float)
+    B = B.astype(float)
+    if np.any(np.isclose(np.diag(A), 0.0)):
+        raise ValueError("A possui elementos diagonais nulos.")
+
+    X = np.zeros(B.shape[0])
+    for _ in range(k):
+        anterior = X.copy()
+        for i in range(B.shape[0]):
+            inferior = np.dot(A[i, :i], X[:i])
+            superior = np.dot(A[i, i + 1:], X[i + 1:])
+            X[i] = (B[i] - inferior - superior) / A[i, i]
+        if np.linalg.norm(X - anterior, ord=2) < TOL:
+            return X
+    return X
