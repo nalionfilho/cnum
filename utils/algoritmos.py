@@ -55,6 +55,52 @@ def newton_raphson(a, f, TOL=1e-8, df=None, max_iter=100):
     raise RuntimeError("O método de Newton-Raphson não convergiu.")
 
 
+def jacobiano_numerico(F, x, eps=1e-8):
+    """Aproxima numericamente o Jacobiano de um sistema F(x)=0 em x."""
+    x = np.asarray(x, dtype=float)
+    n = x.size
+    J = np.zeros((n, n), dtype=float)
+
+    for j in range(n):
+        h = eps * max(1.0, abs(x[j]))
+        x_plus = x.copy()
+        x_minus = x.copy()
+        x_plus[j] += h
+        x_minus[j] -= h
+
+        F_plus = np.asarray(F(x_plus), dtype=float)
+        F_minus = np.asarray(F(x_minus), dtype=float)
+        J[:, j] = (F_plus - F_minus) / (2.0 * h)
+
+    return J
+
+
+def newton_sistemas(x0, F, J=None, tol=1e-8, max_iter=100):
+    """Resolve um sistema F(x)=0 pelo método de Newton-Raphson."""
+    x = np.asarray(x0, dtype=float).copy()
+    F_ = F
+    J_ = J if J is not None else (lambda y: jacobiano_numerico(F_, y))
+
+    for _ in range(max_iter):
+        fx = np.asarray(F_(x), dtype=float)
+        if fx.ndim != 1:
+            raise ValueError("A função F deve retornar um vetor 1D.")
+        if np.linalg.norm(fx, ord=np.inf) <= tol:
+            return x
+
+        jac = np.asarray(J_(x), dtype=float)
+        if jac.shape != (x.size, x.size):
+            raise ValueError("O Jacobiano deve ter dimensões (n, n).")
+
+        delta = np.linalg.solve(jac, -fx)
+        x = x + delta
+
+        if np.linalg.norm(delta, ord=np.inf) <= tol:
+            return x
+
+    raise RuntimeError("O método de Newton-Raphson para sistemas não convergiu.")
+
+
 def secante(a, b, f, TOL=1e-8, max_iter=100):
     """Encontra uma raiz de f pelo método da secante."""
     for _ in range(max_iter):
