@@ -197,3 +197,80 @@ def seidel(A, B, k, TOL):
         if np.linalg.norm(X - anterior, ord=2) < TOL:
             return X
     return X
+
+
+def newton_coef(x, y):
+    """Calcula os coeficientes divididos de Newton."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    n = len(x)
+    a = y.copy()
+    for j in range(1, n):
+        a[j:n] = (a[j:n] - a[j - 1 : n - 1]) / (x[j:n] - x[: n - j])
+    return a
+
+
+def newton(x, y):
+    """Retorna o polinômio interpolador de Newton em coeficientes."""
+    a = newton_coef(x, y)
+    p = np.array([a[-1]], dtype=float)
+    for k in range(len(a) - 2, -1, -1):
+        p = np.convolve(p, np.array([1.0, -x[k]], dtype=float))
+        if len(p) > 0:
+            p[-1] += a[k]
+    return p
+
+
+def lagrange_add(p, q):
+    """Soma dois polinômios representados por coeficientes."""
+    if len(q) > len(p):
+        p, q = q, p
+    off = len(p) - len(q)
+    res = p[:]
+    for i in range(len(q)):
+        res[off + i] += q[i]
+    return res
+
+
+def lagrange_mul(p, q):
+    """Multiplica dois polinômios representados por coeficientes."""
+    deg = (len(p) - 1) + (len(q) - 1)
+    res = [0.0] * (deg + 1)
+    for i, a in enumerate(p):
+        for j, b in enumerate(q):
+            res[i + j] += a * b
+    return res
+
+
+def lagrange_scale(p, s):
+    """Multiplica um polinômio por um escalar."""
+    return [s * c for c in p]
+
+
+def lagrange(x, y):
+    """Retorna o polinômio interpolador de Lagrange em coeficientes."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    n = len(x)
+    p = [0.0]
+    for i in range(n):
+        m = [1.0]
+        d = 1.0
+        xi = x[i]
+        for j in range(n):
+            if j == i:
+                continue
+            m = lagrange_mul(m, [1.0, -x[j]])
+            d *= xi - x[j]
+        pi = lagrange_scale(m, y[i] / d)
+        p = lagrange_add(p, pi)
+    return np.asarray(p, dtype=float)
+
+
+def polinomial(x, y):
+    """Retorna o polinômio interpolador via resolução do sistema Vandermonde."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    n = len(x)
+    V = np.vander(x, N=n, increasing=False)
+    return np.linalg.solve(V, y.astype(float))
