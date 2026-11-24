@@ -274,3 +274,20 @@ def polinomial(x, y):
     n = len(x)
     V = np.vander(x, N=n, increasing=False)
     return np.linalg.solve(V, y.astype(float))
+
+
+def regressao(x, y, v):
+    """Calcula os coeficientes de uma regressão por mínimos quadrados."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float).reshape(-1)
+    if x.ndim != 1:
+        raise ValueError("x deve ser um vetor unidimensional.")
+    if y.size != x.size:
+        raise ValueError("x e y devem possuir o mesmo número de elementos.")
+
+    V = np.asarray(v(x), dtype=float)
+    if V.ndim != 2 or V.shape[0] != x.size:
+        raise ValueError("A função de base deve retornar uma matriz com uma linha por ponto.")
+
+    Vt = V.T
+    return np.linalg.solve(Vt @ V, Vt @ y)
